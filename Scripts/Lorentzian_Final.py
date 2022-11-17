@@ -14,6 +14,8 @@
 # ### 5. Obtain $\Delta$FWHM i.e. the FWHM of all scans relative to that of the 1$^{st}$ scan. Plot these values w.r.t. $E_{res}$.
 # 
 # ### 6. Obtain $\Delta E_{res}$ i.e. the peak Resonant Energy of all the scans relative to that of the 1$^{st}$ scan. Plot these values w.r.t. $E_{res}$.
+# 
+# ### 7. Single-scan mode: Obtain the FWHM and $E_{res}$ for a single scan dataset that will act as a reliability check for the entire cube.
 
 # ## Relevant packages and modules required
 
@@ -292,18 +294,34 @@ def scan10_table(delta_fwhm, delta_E_res, f):
     table_df.to_csv(f, index=False, header=False)
 
 
-# ## Main function that executes everything required from start to finish
+# ## Function that tabulates the FWHM and $E_{res}$ for single scan mode as per Objective 7
 
 # In[19]:
 
 
-def Nanocube_Lorentzian(f1 = "10ConsScan_cube9.csv", f2 = "10ConsScan_cube9ref.csv"):
+def scan1_table(fwhm, E_res, f):
+    table = [['FWHM (eV)', 'E_res (eV)'], [fwhm[0], E_res[0]]]
+    print(tabulate(table, headers='firstrow', tablefmt='fancy_grid', floatfmt=".4f"))
+    table_df=pd.DataFrame(table)
+    table_df.to_csv(f, index=False, header=False)
+
+
+# ## Function where the protocol is executed for all objectives
+
+# In[20]:
+
+
+def Nanocube_Lorentzian(mode, f1, f2, title_list, export_list):
     
     cwd = os.getcwd()
     csv_dir = '/csv/'
     fig_dir = '/Figures/'
     
-    hits, repeats1 = parameter_formatting_WL(cwd + csv_dir + f1, 86, 4, 3)
+    if mode == 1:
+        hits, repeats1 = parameter_formatting_WL(cwd + csv_dir + f1, 84, 3, 2)
+    else:
+        hits, repeats1 = parameter_formatting_WL(cwd + csv_dir + f1, 86, 4, 3)
+        
     miss, repeats2 = parameter_formatting_WL(cwd + csv_dir + f2, 84, 3, 2)
     
     hits_ext = extinction(hits, repeats1)
@@ -317,39 +335,127 @@ def Nanocube_Lorentzian(f1 = "10ConsScan_cube9.csv", f2 = "10ConsScan_cube9ref.c
     
     xdata, ydata = data_prep_ob1(wavelengths, corr_hits_ext_matrix)
     
-    plot_ob1_2(xdata, ydata, 'Wavelength (nm)', 'Extinction (a.u.)', 'Consecutive Wavelength Scans on Nanocube', cwd + fig_dir + 'Full_wavelength_scan.png')
+    plot_ob1_2(xdata, ydata, 'Wavelength (nm)', 'Extinction (a.u.)', title_list[0], cwd + fig_dir + export_list[0])
     
     xslice1, yslice = data_slice(xdata, ydata)
     xslice = lambda_to_E(xslice1)
     
-    plot_ob1_2(xslice, yslice, 'Energy (eV)', 'Extinction (a.u.)', 'Consecutive Wavelength Scans on Nanocube', cwd + fig_dir + 'Sliced_energy_scan.png')
+    plot_ob1_2(xslice, yslice, 'Energy (eV)', 'Extinction (a.u.)', title_list[1], cwd + fig_dir + export_list[1])
     
     fit_params, fit_ydata = lorentzian_fit(xslice, yslice)
     fit_param_set = param_dict_array(fit_params)
     
     FWHM, E_res, height_max_peak = param_extract(fit_param_set)
     
-    plot_ob3_4(xslice, yslice, fit_ydata, 'Energy (eV)', 'Extinction (a.u.)', 'Best-fit Lorentzian Curves for Consecutive Scans', cwd + fig_dir + 'Best-fit_Lorentzian_with_dataset.png')
-    plot_ob1_2(xslice, fit_ydata, 'Energy (eV)', 'Extinction (a.u.)', 'Best-fit Lorentzian Curves for Consecutive Scans', cwd + fig_dir + 'Best-fit_Lorentzian.png')
+    plot_ob3_4(xslice, yslice, fit_ydata, 'Energy (eV)', 'Extinction (a.u.)', title_list[2], cwd + fig_dir + export_list[2])
+    plot_ob1_2(xslice, fit_ydata, 'Energy (eV)', 'Extinction (a.u.)', title_list[3], cwd + fig_dir + export_list[3])
     
     yslice_norm, fit_ydata_norm = extinction_normalize(yslice, fit_ydata, height_max_peak)
     
-    plot_ob3_4(xslice, yslice_norm, fit_ydata_norm, 'Energy (eV)', 'Extinction (a.u.)', 'Normalized Best-fit Lorentzian Curves for Consecutive Scans', cwd + fig_dir + 'Best-fit_Lorentzian_with_dataset_normalized.png')
-    plot_ob1_2(xslice, fit_ydata_norm, 'Energy (eV)', 'Extinction (a.u.)', 'Normalized Best-fit Lorentzian Curves for Consecutive Scans', cwd + fig_dir + 'Best-fit_Lorentzian_normalized.png')
+    plot_ob3_4(xslice, yslice_norm, fit_ydata_norm, 'Energy (eV)', 'Extinction (a.u.)', title_list[4], cwd + fig_dir + export_list[4])
+    plot_ob1_2(xslice, fit_ydata_norm, 'Energy (eV)', 'Extinction (a.u.)', title_list[5], cwd + fig_dir + export_list[5])
     
-    delta_FWHM, delta_E_res = delta_param(FWHM, E_res)
+    if mode == 1:
+        scan1_table(FWHM, E_res, cwd + csv_dir + export_list[6])
+    else:
+        delta_FWHM, delta_E_res = delta_param(FWHM, E_res)
     
-    plot_ob5_6(E_res, delta_FWHM, 'E_res (eV)', 'ΔFWHM (meV)', 'Change in FWHM vs E_res', cwd + fig_dir + 'Delta_FWHM_vs_E-res.png')
-    plot_ob5_6(E_res, delta_E_res, 'E_res (eV)', 'ΔE_res (meV)', 'Change in E_res vs E_res', cwd + fig_dir + 'Delta_E-res_vs_E-res.png', 'lower right')
+        plot_ob5_6(E_res, delta_FWHM, 'E_res (eV)', 'ΔFWHM (meV)', title_list[6], cwd + fig_dir + export_list[6])
+        plot_ob5_6(E_res, delta_E_res, 'E_res (eV)', 'ΔE_res (meV)', title_list[7], cwd + fig_dir + export_list[7], 'lower right')
+
+        param_table(FWHM, delta_FWHM, E_res, delta_E_res, height_max_peak, cwd + csv_dir + export_list[8])
+        scan10_table(delta_FWHM, delta_E_res, cwd + csv_dir + export_list[9])
+
+
+# ## Main function for Consecutive Scans Mode
+
+# In[21]:
+
+
+def Consecutive_Scans_Mode(f1 = "10ConsScan_cube9.csv", f2 = "10ConsScan_cube9ref.csv"):
     
-    param_table(FWHM, delta_FWHM, E_res, delta_E_res, height_max_peak, cwd + csv_dir + 'Parameters_of_interest.csv')
-    scan10_table(delta_FWHM, delta_E_res, cwd + csv_dir + 'Cube_parameters.csv')
+    title_list = ['','','','','','','','']
+    export_list = ['','','','','','','','','','']
+    
+    title_list[0] = 'Consecutive Wavelength Scans on Nanocube'
+    title_list[1] = 'Consecutive Wavelength Scans on Nanocube'
+    title_list[2] = 'Best-fit Lorentzian Curves for Consecutive Scans'
+    title_list[3] = 'Best-fit Lorentzian Curves for Consecutive Scans'
+    title_list[4] = 'Normalized Best-fit Lorentzian Curves for Consecutive Scans'
+    title_list[5] = 'Normalized Best-fit Lorentzian Curves for Consecutive Scans'
+    title_list[6] = 'Change in FWHM vs E_res'
+    title_list[7] = 'Change in E_res vs E_res'
+    
+    export_list[0] = 'Full_wavelength_scan.png'
+    export_list[1] = 'Sliced_energy_scan.png'
+    export_list[2] = 'Best-fit_Lorentzian_with_dataset.png'
+    export_list[3] = 'Best-fit_Lorentzian.png'
+    export_list[4] = 'Best-fit_Lorentzian_with_dataset_normalized.png'
+    export_list[5] = 'Best-fit_Lorentzian_normalized.png'
+    export_list[6] = 'Delta_FWHM_vs_E-res.png'
+    export_list[7] = 'Delta_E-res_vs_E-res.png'
+    export_list[8] = 'Parameters_of_interest.csv'
+    export_list[9] = 'Cube_parameters.csv'
+    
+    Nanocube_Lorentzian(2, f1, f2, title_list, export_list)
+
+
+# ## Main function for Single Scan mode
+
+# In[22]:
+
+
+def Single_Scan_Mode(f1 = "C5.csv", f2 = "C5_ref.csv"):
+    
+    title_list = ['','','','','','']
+    export_list = ['','','','','','','']
+    
+    title_list[0] = 'Single Wavelength Scan on Nanocube'
+    title_list[1] = 'Single Wavelength Scan on Nanocube'
+    title_list[2] = 'Best-fit Lorentzian Curve for Single Scan'
+    title_list[3] = 'Best-fit Lorentzian Curve for Single Scan'
+    title_list[4] = 'Normalized Best-fit Lorentzian Curve for Single Scan'
+    title_list[5] = 'Normalized Best-fit Lorentzian Curve for Single Scan'
+    
+    export_list[0] = 'Single_wavelength_scan.png'
+    export_list[1] = 'Single_Sliced_energy_scan.png'
+    export_list[2] = 'Single_Best-fit_Lorentzian_with_dataset.png'
+    export_list[3] = 'Single_Best-fit_Lorentzian.png'
+    export_list[4] = 'Single_Best-fit_Lorentzian_with_dataset_normalized.png'
+    export_list[5] = 'Single_Best-fit_Lorentzian_normalized.png'
+    export_list[6] = 'Single_scan_parameters.csv'
+    
+    Nanocube_Lorentzian(1, f1, f2, title_list, export_list)
+
+
+# ## Main function that takes in the Mode type as input:
+# 
+# ### 1. Single Scan Mode $\rightarrow$ Enter 1
+# 
+# ### 2. Consecutive Scans Mode $\rightarrow$ Enter 2
+
+# In[23]:
+
+
+def main_func(mode):
+    if mode == 1:
+        Single_Scan_Mode()
+    elif mode == 2:
+        Consecutive_Scans_Mode()
+    else:
+        print("Invalid input")
 
 
 # ## Just call the main function!
 
-# In[20]:
+# In[24]:
 
 
-Nanocube_Lorentzian()
+main_func(1)
+
+
+# In[25]:
+
+
+main_func(2)
 
