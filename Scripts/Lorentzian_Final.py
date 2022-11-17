@@ -24,6 +24,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.constants as sc
+import os
 from pylab import cm
 from lmfit.models import LorentzianModel
 from tabulate import tabulate
@@ -197,7 +198,7 @@ def param_extract(param_set):
 # In[13]:
 
 
-def param_table(fwhm, delta_fwhm, E_res, delta_E_res, h_max):
+def param_table(fwhm, delta_fwhm, E_res, delta_E_res, h_max, f):
     num_el = len(fwhm)
     table = [['Scan no.', 'FWHM (eV)', 'ΔFWHM (meV)', 'E_res (eV)', 'ΔE_res (meV)', 'Height of peak maxima (a.u.)']]
     for i in range(num_el):
@@ -205,7 +206,7 @@ def param_table(fwhm, delta_fwhm, E_res, delta_E_res, h_max):
         table.append(row)
     print(tabulate(table, headers='firstrow', tablefmt='fancy_grid', floatfmt=".4f"))
     table_df=pd.DataFrame(table)
-    table_df.to_csv('Parameters_of_interest.csv', index=False, header=False)
+    table_df.to_csv(f, index=False, header=False)
 
 
 # ## Function that normalizes the extinction dataset as well as the best-fit extinction dataset w.r.t. height of peak maxima for the 10 consecutive scans as per Objective 4
@@ -284,12 +285,11 @@ def plot_ob5_6(xData = [], yData = [], xLabel = '', yLabel = '', Title = '', f =
 # In[18]:
 
 
-def scan10_table(delta_fwhm, delta_E_res):
+def scan10_table(delta_fwhm, delta_E_res, f):
     table = [['ΔFWHM_cube (meV)', 'ΔE_res_cube (meV)'], [delta_fwhm[-1]*1000, delta_E_res[-1]*1000]]
     print(tabulate(table, headers='firstrow', tablefmt='fancy_grid', floatfmt=".4f"))
-    plt.savefig('array.png')
     table_df=pd.DataFrame(table)
-    table_df.to_csv('Cube_parameters.csv', index=False, header=False)
+    table_df.to_csv(f, index=False, header=False)
 
 
 # ## Main function that executes everything required from start to finish
@@ -299,8 +299,12 @@ def scan10_table(delta_fwhm, delta_E_res):
 
 def Nanocube_Lorentzian(f1 = "10ConsScan_cube9.csv", f2 = "10ConsScan_cube9ref.csv"):
     
-    hits, repeats1 = parameter_formatting_WL(f1, 86, 4, 3)
-    miss, repeats2 = parameter_formatting_WL(f2, 84, 3, 2)
+    cwd = os.getcwd()
+    csv_dir = '/csv/'
+    fig_dir = '/Figures/'
+    
+    hits, repeats1 = parameter_formatting_WL(cwd + csv_dir + f1, 86, 4, 3)
+    miss, repeats2 = parameter_formatting_WL(cwd + csv_dir + f2, 84, 3, 2)
     
     hits_ext = extinction(hits, repeats1)
     miss_ext = extinction(miss, repeats2)
@@ -313,33 +317,33 @@ def Nanocube_Lorentzian(f1 = "10ConsScan_cube9.csv", f2 = "10ConsScan_cube9ref.c
     
     xdata, ydata = data_prep_ob1(wavelengths, corr_hits_ext_matrix)
     
-    plot_ob1_2(xdata, ydata, 'Wavelength (nm)', 'Extinction (a.u.)', 'Consecutive Wavelength Scans on Nanocube', 'Full_wavelength_scan.png')
+    plot_ob1_2(xdata, ydata, 'Wavelength (nm)', 'Extinction (a.u.)', 'Consecutive Wavelength Scans on Nanocube', cwd + fig_dir + 'Full_wavelength_scan.png')
     
     xslice1, yslice = data_slice(xdata, ydata)
     xslice = lambda_to_E(xslice1)
     
-    plot_ob1_2(xslice, yslice, 'Energy (eV)', 'Extinction (a.u.)', 'Consecutive Wavelength Scans on Nanocube', 'Sliced_energy_scan.png')
+    plot_ob1_2(xslice, yslice, 'Energy (eV)', 'Extinction (a.u.)', 'Consecutive Wavelength Scans on Nanocube', cwd + fig_dir + 'Sliced_energy_scan.png')
     
     fit_params, fit_ydata = lorentzian_fit(xslice, yslice)
     fit_param_set = param_dict_array(fit_params)
     
     FWHM, E_res, height_max_peak = param_extract(fit_param_set)
     
-    plot_ob3_4(xslice, yslice, fit_ydata, 'Energy (eV)', 'Extinction (a.u.)', 'Best-fit Lorentzian Curves for Consecutive Scans', 'Best-fit_Lorentzian_with_dataset.png')
-    plot_ob1_2(xslice, fit_ydata, 'Energy (eV)', 'Extinction (a.u.)', 'Best-fit Lorentzian Curves for Consecutive Scans', 'Best-fit_Lorentzian.png')
+    plot_ob3_4(xslice, yslice, fit_ydata, 'Energy (eV)', 'Extinction (a.u.)', 'Best-fit Lorentzian Curves for Consecutive Scans', cwd + fig_dir + 'Best-fit_Lorentzian_with_dataset.png')
+    plot_ob1_2(xslice, fit_ydata, 'Energy (eV)', 'Extinction (a.u.)', 'Best-fit Lorentzian Curves for Consecutive Scans', cwd + fig_dir + 'Best-fit_Lorentzian.png')
     
     yslice_norm, fit_ydata_norm = extinction_normalize(yslice, fit_ydata, height_max_peak)
     
-    plot_ob3_4(xslice, yslice_norm, fit_ydata_norm, 'Energy (eV)', 'Extinction (a.u.)', 'Normalized Best-fit Lorentzian Curves for Consecutive Scans', 'Best-fit_Lorentzian_with_dataset_normalized.png')
-    plot_ob1_2(xslice, fit_ydata_norm, 'Energy (eV)', 'Extinction (a.u.)', 'Normalized Best-fit Lorentzian Curves for Consecutive Scans', 'Best-fit_Lorentzian_normalized.png')
+    plot_ob3_4(xslice, yslice_norm, fit_ydata_norm, 'Energy (eV)', 'Extinction (a.u.)', 'Normalized Best-fit Lorentzian Curves for Consecutive Scans', cwd + fig_dir + 'Best-fit_Lorentzian_with_dataset_normalized.png')
+    plot_ob1_2(xslice, fit_ydata_norm, 'Energy (eV)', 'Extinction (a.u.)', 'Normalized Best-fit Lorentzian Curves for Consecutive Scans', cwd + fig_dir + 'Best-fit_Lorentzian_normalized.png')
     
     delta_FWHM, delta_E_res = delta_param(FWHM, E_res)
     
-    plot_ob5_6(E_res, delta_FWHM, 'E_res (eV)', 'ΔFWHM (meV)', 'Change in FWHM vs E_res', 'Delta_FWHM_vs_E-res.png')
-    plot_ob5_6(E_res, delta_E_res, 'E_res (eV)', 'ΔE_res (meV)', 'Change in E_res vs E_res', 'Delta_E-res_vs_E-res.png', 'lower right')
+    plot_ob5_6(E_res, delta_FWHM, 'E_res (eV)', 'ΔFWHM (meV)', 'Change in FWHM vs E_res', cwd + fig_dir + 'Delta_FWHM_vs_E-res.png')
+    plot_ob5_6(E_res, delta_E_res, 'E_res (eV)', 'ΔE_res (meV)', 'Change in E_res vs E_res', cwd + fig_dir + 'Delta_E-res_vs_E-res.png', 'lower right')
     
-    param_table(FWHM, delta_FWHM, E_res, delta_E_res, height_max_peak)
-    scan10_table(delta_FWHM, delta_E_res)
+    param_table(FWHM, delta_FWHM, E_res, delta_E_res, height_max_peak, cwd + csv_dir + 'Parameters_of_interest.csv')
+    scan10_table(delta_FWHM, delta_E_res, cwd + csv_dir + 'Cube_parameters.csv')
 
 
 # ## Just call the main function!
